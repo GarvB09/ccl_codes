@@ -2,7 +2,8 @@ from lexer import lexer
 
 filename = input("Enter filename: ")
 
-with open(filename, "r") as f:
-    source = f.read()
+with open(filename) as f:
+    lexer.input(f.read())
 
-lexer.input(source)
+for tok in lexer:
+    print(tok)

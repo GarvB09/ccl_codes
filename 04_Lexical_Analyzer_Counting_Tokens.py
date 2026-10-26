@@ -1,93 +1,63 @@
 import re
 
-keywords = {
-    "int", "float", "char", "double", "void",
-    "if", "else", "while", "for", "return"
-}
+keywords = {"int", "float", "char", "double", "void",
+            "if", "else", "while", "for", "return"}
 
-token_patterns_ordered = [
-    ("WHITESPACE",     r'[ \t\r\n]+'),
-    ("NUMBER",         r'\d+\.\d+|\d+'),
-    ("IDENTIFIER",     r'[A-Za-z_][A-Za-z0-9_]*'),
-    ("OPERATOR",       r'==|!=|<=|>=|&&|\|\||[+\-*/%=<>]'),
-    ("PUNCTUATION",    r'[(){}\[\];,]'),
+# order matters: first matching pattern wins
+patterns = [
+    ("WHITESPACE",  r'[ \t\r\n]+'),
+    ("NUMBER",      r'\d+\.\d+|\d+'),
+    ("IDENTIFIER",  r'[A-Za-z_][A-Za-z0-9_]*'),
+    ("OPERATOR",    r'==|!=|<=|>=|&&|\|\||[+\-*/%=<>]'),
+    ("PUNCTUATION", r'[(){}\[\];,]'),
 ]
+master = re.compile("|".join(f"(?P<{name}>{rx})" for name, rx in patterns))
 
-compiled_patterns = []
-for name, pattern in token_patterns_ordered:
-    compiled_patterns.append((name, re.compile(pattern)))
+# which counter each token type adds to
+group = {"KEYWORD": "Keywords", "IDENTIFIER": "Identifiers", "NUMBER": "Numbers",
+         "OPERATOR": "Operators", "PUNCTUATION": "Operators"}
 
 
 def tokenize(code):
     tokens = []
     counts = {"Keywords": 0, "Identifiers": 0, "Operators": 0, "Numbers": 0}
-    unknown_count = 0
+    unknown = 0
 
-    pos = 0
-    n = len(code)
-
-    if n == 0:
+    if not code:
         print("Warning: Empty input received. No tokens to scan.")
         return tokens, counts
 
-    while pos < n:
-        match = None
-        token_type = None
-
-        for name, regex in compiled_patterns:
-            m = regex.match(code, pos)
-            if m:
-                match = m
-                token_type = name
-                break
-
-        if match is None:
-            bad_char = code[pos]
-            print(f"Warning: Unknown token '{bad_char}' at position {pos}")
-            unknown_count += 1
+    pos = 0
+    while pos < len(code):
+        m = master.match(code, pos)
+        if m is None:
+            print(f"Warning: Unknown token '{code[pos]}' at position {pos}")
+            unknown += 1
             pos += 1
             continue
-
-        text = match.group()
-
-        if token_type == "WHITESPACE":
-            pos = match.end()
+        pos = m.end()
+        kind, text = m.lastgroup, m.group()
+        if kind == "WHITESPACE":
             continue
+        if kind == "IDENTIFIER" and text in keywords:
+            kind = "KEYWORD"
+        counts[group[kind]] += 1
+        tokens.append((kind, text))
 
-        if token_type == "IDENTIFIER":
-            if text in keywords:
-                token_type = "KEYWORD"
-                counts["Keywords"] += 1
-            else:
-                counts["Identifiers"] += 1
-
-        elif token_type == "NUMBER":
-            counts["Numbers"] += 1
-
-        elif token_type in ("OPERATOR", "PUNCTUATION"):
-            counts["Operators"] += 1
-
-        tokens.append((token_type, text))
-        pos = match.end()
-
-    if unknown_count:
-        print(f"Total unknown/invalid characters skipped: {unknown_count}")
-
+    if unknown:
+        print(f"Total unknown/invalid characters skipped: {unknown}")
     return tokens, counts
 
 
 def display_results(tokens, counts):
-    total = sum(counts.values())
     print("\nTokens Found:")
-    for token_type, text in tokens:
-        print(f"  {token_type:<12} -> {text}")
+    for kind, text in tokens:
+        print(f"  {kind:<12} -> {text}")
 
     print("\nLexical Analysis Results:")
-    print(f"Keywords: {counts['Keywords']}")
-    print(f"Identifiers: {counts['Identifiers']}")
-    print(f"Operators: {counts['Operators']}")
-    print(f"Numbers: {counts['Numbers']}")
-    print(f"Total Tokens: {total}")
+    for name, n in counts.items():
+        print(f"{name}: {n}")
+    print(f"Total Tokens: {sum(counts.values())}")
 
 
 def main():
@@ -96,7 +66,7 @@ def main():
     if choice == "1":
         filename = input("Enter C file name: ")
         try:
-            with open(filename, "r") as f:
+            with open(filename) as f:
                 code = f.read()
         except FileNotFoundError:
             print(f"Error: File '{filename}' not found.")
@@ -104,15 +74,11 @@ def main():
     else:
         print("Enter your C code. Type 'END' on a new line when done:")
         lines = []
-        while True:
-            line = input()
-            if line.strip() == "END":
-                break
+        while (line := input()).strip() != "END":
             lines.append(line)
         code = "\n".join(lines)
 
-    tokens, counts = tokenize(code)
-    display_results(tokens, counts)
+    display_results(*tokenize(code))
 
 
 if __name__ == "__main__":

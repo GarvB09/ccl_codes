@@ -70,12 +70,6 @@ def p_error(p):
 
 parser = yacc.yacc()
 
-class Feed:
-    def __init__(self, toks):
-        self.it = iter(toks)
-    def token(self):
-        return next(self.it, None)
-
 if __name__ == "__main__":
     while True:
         try:
@@ -93,6 +87,7 @@ if __name__ == "__main__":
         if lex_error:
             continue
         print("Tokens:", " ".join(f"<{t.type},{t.value}>" for t in toks))
-        if parser.parse(lexer=Feed(toks)) is not None:
+        lexer.input(s)
+        if parser.parse(lexer=lexer) is not None:
             print("Three-Address Code:")
             print("\n".join(tac_code))

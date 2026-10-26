@@ -1,5 +1,6 @@
 import ply.lex as lex
 import ply.yacc as yacc
+import operator
 
 # ---- Lexer ----
 tokens = ('NUMBER', 'PLUS', 'MINUS', 'TIMES', 'DIVIDE')
@@ -10,6 +11,7 @@ t_TIMES = r'\*'
 t_DIVIDE = r'/'
 t_ignore = ' \t'
 
+OPS = {'+': operator.add, '-': operator.sub, '*': operator.mul, '/': operator.truediv}
 lex_error = False
 
 def t_NUMBER(t):
@@ -36,14 +38,7 @@ def p_expression_binop(p):
                    | expression MINUS expression
                    | expression TIMES expression
                    | expression DIVIDE expression'''
-    if p[2] == '+':
-        p[0] = p[1] + p[3]
-    elif p[2] == '-':
-        p[0] = p[1] - p[3]
-    elif p[2] == '*':
-        p[0] = p[1] * p[3]
-    elif p[2] == '/':
-        p[0] = p[1] / p[3]
+    p[0] = OPS[p[2]](p[1], p[3])
 
 def p_expression_number(p):
     'expression : NUMBER'
@@ -52,10 +47,7 @@ def p_expression_number(p):
 def p_error(p):
     if lex_error:
         return
-    if p:
-        print(f"Syntax error at '{p.value}'")
-    else:
-        print("Syntax error at EOF")
+    print(f"Syntax error at '{p.value}'" if p else "Syntax error at EOF")
 
 parser = yacc.yacc()
 
